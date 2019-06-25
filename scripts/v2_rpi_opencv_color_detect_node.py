@@ -15,6 +15,10 @@ from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 
+# uses raspicam node and command line arguments specifying desired colors
+# masks and draws bounding boxes around objects of each desired color
+# publishes results to individual ROS topics
+
 # numpy arrays corresponding to upper/lower bounds of desired colors
 # later used to make color masks
 lower_red = np.array([160,100,50])
