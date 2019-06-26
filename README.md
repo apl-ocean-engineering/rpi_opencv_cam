@@ -16,8 +16,9 @@ Add rpi_opencv_cam to your catkin_ws/src folder, then run catkin_make from your 
   
 ## Miscellaneous Info
   * Master branch corresponds to the version made for running on raspberry pi, using the [Ubiquity Robotics Xenial image](https://downloads.ubiquityrobotics.com/pi.html)
-  * Raspberry pi currently runs opencv 3.3.1-dev, and desktop runs 4.1.0
+  * Raspberry pi currently runs opencv 3.3.1-dev, and desktop runs opencv 4.1.0
   * Both branches use python 2.7
+  * Desktop runs ROS melodic, raspberry pi runs ROS kinetic
   
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
