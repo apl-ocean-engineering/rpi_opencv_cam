@@ -14,14 +14,15 @@ rng.seed(12345)
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
+from rpi_opencv_cam.msg import centroid
 
 # uses raspicam node and command line arguments specifying desired colors
-# masks and draws bounding boxes around objects of each desired color
-# publishes results to individual ROS topics
+# masks and draws bounding boxes + contours around objects of each desired color
+# publishes results + data to ROS topics
 
 # numpy arrays corresponding to upper/lower bounds of desired colors
 # later used to make color masks
-lower_red = np.array([160,100,50])
+lower_red = np.array([160,100,30])
 upper_red = np.array([180,255,255])
 lower_blue = np.array([100,150,0])
 upper_blue = np.array([140,255,255])
@@ -32,6 +33,11 @@ colors = ['red','blue']
 # dictionary of topic publishers, used to publish result for each desired color
 # updated in __init__
 color_topics = {}
+centroid_publisher = rospy.Publisher("centroid_data", centroid, queue_size=10)
+# how many frames the node should wait before starting to look for errors
+comparison_wait_frame = 10
+# counts how many frames have been processed
+frame_counter = 0
 
 class image_converter:
 
@@ -47,7 +53,8 @@ class image_converter:
       # unsure why this line doesn't work
       print ("No color given")
       rospy.signal_shutdown("No color given")
-
+    
+    centroid_publisher = rospy.Publisher("centroid_data", centroid, queue_size=10)
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("raspicam_node/image",Image,self.callback)
 
@@ -64,7 +71,7 @@ class image_converter:
    # dictionary of colors that map to opencv masks
    # might be better to have this in a separate file?
    # maybe some way to automate the generation of this?
-   # since we have a list of colors, and each color has an upper_ and lower_ defined,
+   # since we have a list of colors, and each color has an upper_ and lower_ defined
    # could you loop thru the color list and build up the color_filter dictionary?
     color_filters = {
     'red': cv.inRange(hsv, lower_red, upper_red),
@@ -81,11 +88,11 @@ class image_converter:
           result = cv.dilate(result, kernel, iterations=2)
           result = cv.morphologyEx(result, cv.MORPH_CLOSE, kernel)
           # thresholding for bounding box
-          threshold = 130
+          threshold = 100
           blur = cv.blur(result, (3,3))
-          canny_output = cv.Canny(blur, threshold, threshold * 2)
+          canny_output = cv.Canny(result, threshold, threshold * 2)
           # in opencv 4, did not need "im2"
-          im2, contours, _ = cv.findContours(canny_output, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+          contours, _ = cv.findContours(canny_output, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
           drawing = result
           # draw only biggest contour (used while working with 1 object)
           if len(contours) != 0:
@@ -93,9 +100,25 @@ class image_converter:
             cv.drawContours(drawing, contours, -1, 255, 3)
             # find the biggest area
             c = max(contours, key = cv.contourArea)
+            # calculate center of chosen area
+            M = cv.moments(c)
+            cX = int(M["m10"] / M["m00"])
+            cY = int(M["m01"] / M["m00"])
+            # TODO: before drawing stuff, check to see if center is off
+            
             x,y,w,h = cv.boundingRect(c)
-            # draw the biggest bounding box (in green)
+            # draw the biggest bounding box (in green) and centroid
             cv.rectangle(drawing,(x,y),(x+w,y+h),(0,255,0),2)
+            cv.circle(drawing, (cX, cY), 5, (255, 255, 255), -1)
+            cv.putText(drawing, "centroid", (cX - 25, cY - 25),cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            # publish centroid info to centroid_data topic
+            # will need to loop through all contours later
+            centroid_info = centroid()
+            centroid_info.x = cX
+            centroid_info.y = cY
+            centroid_info.color = color
+            centroid_publisher.publish(centroid_info)
+
 
 # old code for drawing all found bounding boxes / contours
 #          contours_poly = [None]*len(contours)
