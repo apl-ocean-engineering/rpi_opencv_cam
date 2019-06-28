@@ -18,6 +18,7 @@ from cv_bridge import CvBridge, CvBridgeError
 # uses raspicam node and command line arguments specifying desired colors
 # masks and draws bounding boxes around objects of each desired color
 # publishes results to individual ROS topics
+# example usage: ./v2_rpi_opencv_color_detect red
 
 # numpy arrays corresponding to upper/lower bounds of desired colors
 # later used to make color masks
